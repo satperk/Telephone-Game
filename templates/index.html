@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
+
+    <title>CS 240: Telephone Microservice</title>
+    <script>
+      function enableButtons(disabled=false) {
+        $("#tsbutton").prop("disabled",disabled);
+        $("#tlbutton").prop("disabled",disabled);
+        $("#again").prop("disabled",disabled);
+      }
+
+      function disableButtons() {
+        enableButtons(true);
+      }
+
+      function sendPOSTTransscribe() {
+        if ($('#audio')[0].files[0].size > 1024*1024) {
+          alert("Please keep files under 1MB :)")
+          return;
+        }
+        disableButtons();
+        $.ajax({
+          url         : '/transcribe',
+          type        : 'POST',
+          data        : new FormData($('#audioform')[0]),
+          processData : false,
+          contentType : false
+        }).done(function(data){
+          if (data["transcription"] == "Speech to text error") {
+            alert("An error occurred, the file couldn't be transcribed!");
+          } else {
+            $("#source").val(data["transcription"]);
+          }
+          enableButtons();
+        }).fail(function(){
+          alert("An error occurred, the files couldn't be sent!");
+          enableButtons();
+        });
+      };
+
+      function sendPOSTTranslate(again) {
+        disableButtons();
+        if(again) {
+          var newtext = $("#telephonelist li").last().text();
+          $("#source").val(newtext);
+        } else {
+          $("#telephonelist").empty();
+          $("#telephonelist").append(`<li style="color:green;">${$("#source").val()}</li>`);
+          $("#again").hide();
+        }
+        let formData = { source: $("#source").val() };
+        $.post("/telephone", formData)
+        .done(function (data) {
+          $("#telephonelist").append(`<li>${data.telephone}</li>`);
+          $("#again").show();
+          enableButtons();
+        })
+        .fail(function (data) {
+          $("#content").html(`<hr><h3>Error</h3><p>${JSON.stringify(data)}</p>`);
+          enableButtons();
+        })
+      };
+    </script>    
+  </head>
+  <body>
+    <div class="container">
+
+      <h1>Telephone Fun!</h1>
+
+      <div class="form-group row">
+        <label for="file1" class="col-sm-2 col-form-label">Audio File:</label>
+        <div class="col-sm-10">
+        <form id="audioform" enctype="multipart/form-data">
+          <input type="file"  class="form-control" id="audio" name="audio">
+        </form>
+        </div>
+      </div>
+
+      <button onclick="sendPOSTTransscribe();" id="tsbutton" class="btn btn-secondary">Transcribe!</button>
+
+      <div class="form-group row">
+        <label for="source" class="col-sm-2 col-form-label">Text:</label>
+        <div class="col-sm-10">
+          <input type="text" class="form-control" id="source" name="source" placeholder="Enter Some Text">
+        </div>
+      </div>
+
+      <button onclick="sendPOSTTranslate(false);" id="tlbutton" class="btn btn-secondary">Start the Telephone!</button>
+
+      <div id="content">
+        <ul id="telephonelist">
+        </ul>
+      </div>
+
+      <button onclick="sendPOSTTranslate(true);" id="again" class="btn btn-secondary" style="display: none;">Keep Going!</button>
+
+    </div>
+  </body>
+</html>
